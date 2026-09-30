@@ -19,6 +19,19 @@ jobs:
           node-version: "22"
       - name: Install React Native dependencies
         run: npm install
+      - name: Verify React Native config
+        run: |
+          npx react-native config > /tmp/react-native-config.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const config = JSON.parse(fs.readFileSync('/tmp/react-native-config.json', 'utf8'));
+          const android = config.project && config.project.android;
+          console.log(JSON.stringify(android, null, 2));
+          if (!android || android.packageName !== 'com.luvia.ai') {
+            console.error('Invalid React Native Android project config:', JSON.stringify(android));
+            process.exit(1);
+          }
+          NODE
       - name: Verify TypeScript
         run: npm run typecheck
       - name: Test backend
