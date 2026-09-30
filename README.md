@@ -1,83 +1,81 @@
 # Luvia
 
-Luvia é um aplicativo Android nativo em Kotlin/Jetpack Compose que conversa com um **backend próprio**. O backend chama o OpenRouter; a chave do provedor nunca é enviada para o APK nem é versionada.
-
-## Arquitetura
+**Luvia** é um app Android em **React Native + TypeScript** para assistência em Luau e Roblox Studio. O app nunca chama OpenRouter diretamente: ele conversa apenas com o backend da Luvia.
 
 ```text
-Luvia Android → Backend da Luvia → OpenRouter → modelo → Backend → Luvia Android
+React Native Android → Backend da Luvia → OpenRouter → modelo → Backend → app
 ```
 
-- `app/`: app Android, interface Compose e `BackendAiService`. O app só envia `POST /api/chat` para o backend.
-- `backend/`: servidor Node.js sem dependências externas. Ele mantém o prompt especializado, chama OpenRouter e valida/normaliza a resposta.
-- `AiService`: contrato separado da UI. Trocar o provedor futuramente requer outra implementação do backend, sem alterar a tela de chat.
+## App React Native
 
-O prompt da Luvia responde em português do Brasil e exige que códigos Roblox informem tipo (`Script`, `LocalScript` ou `ModuleScript`), local de inserção e explicação. Também prioriza validação no servidor, `RemoteEvent`, `RemoteFunction`, `ReplicatedStorage`, `ServerScriptService`, `StarterPlayer`, `StarterGui`, módulos e replicação. Pedidos para invadir experiências de terceiros, roubar dados, credenciais ou burlar sistemas são recusados.
+- Tema escuro, layout responsivo, transições sutis, tela inicial com sugestões e menu lateral.
+- Chat com mensagens à direita/esquerda, rolagem automática, histórico local da conversa, geração/cancelamento e erros legíveis.
+- Blocos Roblox mostram tipo (`Script`, `LocalScript`, `ModuleScript`), localização, explicação e botão **Copiar**.
+- `src/services/AiService.ts` mantém a UI independente do provedor: `BackendAiService` chama somente `POST /api/chat`.
 
-## Configurar o backend
+### URL do backend
 
-Requisitos: Node.js 20+ e uma conta OpenRouter.
+O build de debug aponta para `http://10.0.2.2:8080/` (host da máquina no emulador Android). Para dispositivo físico ou produção, compile com HTTPS:
 
-1. Copie o modelo de ambiente e preencha **apenas localmente**:
+```bash
+./gradlew -p android assembleDebug -PLUVIA_BACKEND_URL=https://seu-backend.exemplo/
+```
+
+A URL não é segredo. Nenhuma chave OpenRouter é empacotada no APK.
+
+## Backend e OpenRouter
+
+O backend Node.js fica em `backend/`, recebe uma mensagem em `/api/chat`, valida o conteúdo e envia a requisição ao OpenRouter com um prompt próprio da Luvia. Ele responde em pt-BR, prioriza cliente/servidor, `RemoteEvent`, `RemoteFunction`, `ReplicatedStorage`, `ServerScriptService`, `StarterPlayer`, `StarterGui`, segurança, replicação e performance. Solicitações para invadir terceiros, roubar credenciais ou dados continuam recusadas; segurança e anti-exploit para experiências próprias são permitidos.
+
+1. Crie seu arquivo local, que é ignorado pelo Git:
 
    ```bash
    cp .env.example backend/.env
    ```
 
-2. Exporte as variáveis antes de iniciar. Em macOS/Linux:
+2. Preencha `backend/.env` **somente na sua máquina/host** e exporte-o:
 
    ```bash
-   set -a
-   . backend/.env
-   set +a
-   export OPENROUTER_MODEL="openrouter/free" # ou outro modelo disponível na sua conta
+   set -a; . backend/.env; set +a
+   export OPENROUTER_MODEL="openrouter/free"
    ```
 
-   Defina `OPENROUTER_API_KEY` no arquivo `backend/.env` (ou diretamente no ambiente). Nunca coloque essa chave no APK, no Gradle, no código ou no GitHub. `OPENROUTER_MODEL` é opcional: sem ela, o backend usa `openrouter/free`.
-
-3. Execute e teste:
+3. Inicie e teste:
 
    ```bash
    cd backend
    npm test
    npm start
    curl http://localhost:8080/health
-   curl -X POST http://localhost:8080/api/chat \
-     -H 'Content-Type: application/json' \
-     -d '{"message":"Como valido um RemoteEvent de compra?"}'
    ```
 
-O servidor escuta em `http://localhost:8080` por padrão. Ele trata mensagens inválidas, indisponibilidade/conexão, timeout, limite do provedor (HTTP 429) e respostas inválidas sem expor a chave.
+`OPENROUTER_API_KEY` é obrigatório e é lido exclusivamente do ambiente do backend. `OPENROUTER_MODEL` é opcional; o padrão é `openrouter/free`.
 
-### Hospedagem e segredos
+### Hospedagem segura
 
-No painel do serviço que hospeda **o backend** (por exemplo, seção *Environment Variables*/*Secrets* do Render, Railway, Fly.io ou similar), cadastre:
+No painel do serviço que hospeda **o backend** (Render, Railway, Fly.io ou equivalente), abra **Environment Variables**/**Secrets** e crie:
 
-- `OPENROUTER_API_KEY`: sua chave real do OpenRouter, marcada como secreta;
-- `OPENROUTER_MODEL`: `openrouter/free` inicialmente, ou um identificador de modelo que sua conta possa usar.
+- `OPENROUTER_API_KEY`: sua chave real, marcada como segredo;
+- `OPENROUTER_MODEL`: `openrouter/free` inicialmente ou outro modelo disponível na conta.
 
-Não cadastre a chave no GitHub Actions do APK nem no Android. Configure também o `PORT` somente se sua plataforma exigir; plataformas geralmente o fornecem automaticamente.
+Nunca cadastre a chave no GitHub Actions, no APK, em arquivos Gradle ou no repositório.
 
-## Conectar o Android ao backend
+## Desenvolvimento e APK
 
-O debug APK usa `http://10.0.2.2:8080/`, que aponta para a máquina local quando executado no emulador Android. Para um dispositivo físico ou backend hospedado, use HTTPS e passe a URL durante o build:
-
-```bash
-./gradlew assembleDebug -PLUVIA_BACKEND_URL=https://seu-backend.exemplo/
-```
-
-Depois abra o app, envie uma pergunta sobre Luau/Roblox e a resposta do endpoint `/api/chat` aparecerá na conversa. Para desenvolvimento local em dispositivo físico, substitua `10.0.2.2` pelo IP LAN da máquina e use uma rede confiável.
-
-## Compilar o APK
-
-Instale Android SDK Platform 35, JDK 17, `curl` (ou `wget`) e `unzip`, então execute:
+Requisitos: Node.js 20+, JDK 17, Android SDK Platform 35, `curl`/`wget` e `unzip`.
 
 ```bash
-./gradlew assembleDebug
+npm install
+npm run typecheck
+npm start
+# em outro terminal, com emulador ou dispositivo conectado:
+npm run android
+# ou apenas gerar o APK:
+./gradlew -p android assembleDebug
 ```
 
-O APK de debug é gerado em `app/build/outputs/apk/debug/app-debug.apk`.
+O APK é gerado em `android/app/build/outputs/apk/debug/app-debug.apk`.
 
 ## CI
 
-O workflow **Build debug APK** testa o backend, compila o APK com Java 17 e publica `app-debug.apk` como o artifact `luvia-debug-apk`. Nenhuma chave é necessária no CI para esses testes ou para a compilação.
+O workflow **Build debug APK** instala dependências React Native, verifica TypeScript, testa o backend, compila o APK e publica `luvia-debug-apk`. Nenhum segredo é necessário no CI.

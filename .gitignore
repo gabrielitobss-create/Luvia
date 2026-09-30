@@ -9,3 +9,7 @@ local.properties
 .env
 .env.*
 !.env.example
+
+# JavaScript dependencies and Metro caches.
+node_modules/
+.metro-health-check*
