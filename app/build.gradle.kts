@@ -4,6 +4,10 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val backendBaseUrl = providers.gradleProperty("LUVIA_BACKEND_URL")
+    .orElse("http://10.0.2.2:8080/")
+    .get()
+
 android {
     namespace = "com.luvia.ai"
     compileSdk = 35
@@ -14,6 +18,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        buildConfigField("String", "BACKEND_BASE_URL", "\"$backendBaseUrl\"")
     }
 
     buildFeatures { compose = true; buildConfig = true }

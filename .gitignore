@@ -4,3 +4,8 @@ build/
 local.properties
 *.iml
 .idea/
+
+# Backend environment files may contain the OpenRouter credential.
+.env
+.env.*
+!.env.example

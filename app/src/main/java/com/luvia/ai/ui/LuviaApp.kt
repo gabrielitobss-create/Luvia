@@ -22,13 +22,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.luvia.ai.data.AiAnswer
 import com.luvia.ai.data.AiService
-import com.luvia.ai.data.LocalLuviaService
+import com.luvia.ai.data.BackendAiService
 import kotlinx.coroutines.launch
 
 private data class ChatMessage(val fromLuvia: Boolean, val body: String, val answer: AiAnswer? = null)
 
 @Composable
-fun LuviaApp(service: AiService = LocalLuviaService()) {
+fun LuviaApp(service: AiService = BackendAiService()) {
     var settingsOpen by remember { mutableStateOf(false) }
     if (settingsOpen) SettingsScreen(onBack = { settingsOpen = false }) else ChatScreen(service, { settingsOpen = true })
 }
@@ -55,8 +55,11 @@ private fun ChatScreen(service: AiService, onSettings: () -> Unit) {
                     val prompt = input.trim(); if (prompt.isNotEmpty() && !loading) {
                         messages += ChatMessage(false, prompt); input = ""; loading = true
                         scope.launch {
-                            val response = service.answer(prompt)
-                            messages += ChatMessage(true, response.text, response)
+                            val response = runCatching { service.answer(prompt) }
+                            val answer = response.getOrElse { error ->
+                                AiAnswer(error.message ?: "Não foi possível obter uma resposta agora.")
+                            }
+                            messages += ChatMessage(true, answer.text, answer)
                             loading = false
                         }
                     }
@@ -80,13 +83,13 @@ private fun MessageBubble(message: ChatMessage) {
         Spacer(Modifier.height(4.dp))
         Column(Modifier.clip(RoundedCornerShape(18.dp)).background(color).padding(14.dp).widthIn(max = 340.dp)) {
             Text(message.body, color = if (message.fromLuvia) MaterialTheme.colorScheme.onSurface else Color(0xFF101426))
-            message.answer?.let { answer -> answer.code?.let { CodeBlock(it, answer.scriptType.orEmpty(), answer.placement.orEmpty()) } }
+            message.answer?.codeBlocks?.forEach { block -> CodeBlock(block.code, block.scriptType, block.placement, block.explanation) }
         }
     }
 }
 
 @Composable
-private fun CodeBlock(code: String, scriptType: String, placement: String) {
+private fun CodeBlock(code: String, scriptType: String, placement: String, explanation: String) {
     val clipboard = LocalClipboardManager.current
     Spacer(Modifier.height(12.dp))
     Surface(color = Color(0xFF090E1B), shape = RoundedCornerShape(12.dp)) {
@@ -96,6 +99,10 @@ private fun CodeBlock(code: String, scriptType: String, placement: String) {
                 IconButton(onClick = { clipboard.setText(AnnotatedString(code)) }) { Icon(Icons.Default.ContentCopy, "Copiar código", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
             Text(code, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall, color = Color(0xFFD7E2FF))
+            if (explanation.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(explanation, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
