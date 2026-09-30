@@ -11,18 +11,33 @@ import java.util.List;
 
 public class MainApplication extends Application implements ReactApplication {
   private final ReactNativeHost reactNativeHost = new DefaultReactNativeHost(this) {
-    @Override public boolean getUseDeveloperSupport() { return BuildConfig.DEBUG; }
+    @Override public boolean getUseDeveloperSupport() {
+      // The APK is distributed as a standalone build and must never require Metro.
+      return false;
+    }
+
     @Override protected List<ReactPackage> getPackages() {
       List<ReactPackage> packages = new PackageList(this).getPackages();
       packages.add(new BackendConfigPackage());
       return packages;
     }
-    @Override protected String getJSMainModuleName() { return "index"; }
-    @Override protected boolean isNewArchEnabled() { return BuildConfig.IS_NEW_ARCHITECTURE_ENABLED; }
-    @Override protected Boolean isHermesEnabled() { return BuildConfig.IS_HERMES_ENABLED; }
+
+    @Override protected String getJSMainModuleName() {
+      return "index";
+    }
+
+    @Override protected boolean isNewArchEnabled() {
+      return BuildConfig.IS_NEW_ARCHITECTURE_ENABLED;
+    }
+
+    @Override protected Boolean isHermesEnabled() {
+      return BuildConfig.IS_HERMES_ENABLED;
+    }
   };
 
-  @Override public ReactNativeHost getReactNativeHost() { return reactNativeHost; }
+  @Override public ReactNativeHost getReactNativeHost() {
+    return reactNativeHost;
+  }
 
   @Override public void onCreate() {
     super.onCreate();
